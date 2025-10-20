@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organize PDF</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body data-theme="dark">
+    <div id="customTooltip" class="custom-tooltip"></div>
+
+    <div class="organize-header">
+        <div class="header-left">
+            
+            <div class="header-actions">
+                <button class="header-btn" onclick="openFiles()" data-tooltip="Adicionar arquivos">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
+                <button class="header-btn disabled" id="saveOrganizedBtn" onclick="saveOrganized()" data-tooltip="Salvar organizado">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button class="header-btn disabled" id="exportSelectedBtn" onclick="openExportModal()" data-tooltip="Exportar selecionadas">
+                    <i class="fas fa-download"></i>
+                </button>
+
+
+                <button class="header-btn" onclick="openSplitModal()" id="splitBtn" data-tooltip="Dividir arquivo">
+                    <i class="fa-solid fa-scissors"></i>
+                </button>
+                
+                <button class="header-btn disabled" id="toggleSelectBtn" onclick="toggleSelectAll()" data-tooltip="Selecionar todas">
+                    <i class="fas fa-check-square"></i>
+                </button>
+                <button class="header-btn disabled" id="deleteBtn" onclick="deleteSelected()" data-tooltip="Excluir selecionadas">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="header-btn disabled" id="clearBtn" onclick="openClearModal()" data-tooltip="Limpar tela">
+                    <i class="fas fa-broom"></i>
+                </button>
+            </div>
+
+            <div class="header-view-controls">
+                <button class="view-toggle active disabled" data-view="grid" onclick="setViewMode('grid')" data-tooltip="Visualizar em Grade">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button class="view-toggle disabled" data-view="list" onclick="setViewMode('list')" data-tooltip="Visualizar em Lista">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button class="header-btn" onclick="openHelpModal()" data-tooltip="Ajuda e atalhos">
+                <i class="fa-solid fa-circle-info"></i>
+            </button>
+            <div class="modern-theme-switch">
+                <input type="checkbox" id="themeToggle" />
+                <label for="themeToggle" class="theme-switch-label" data-tooltip="Alternar tema escuro/claro">
+                    <div class="theme-switch-slider">
+                        <div class="theme-switch-icon">
+                            <i class="fas fa-sun light-icon"></i>
+                            <i class="fas fa-moon dark-icon"></i>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="organize-container">
+        <div class="organize-content">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <h2>Organize seus documentos</h2>
+                <p>Arraste arquivos pdf e Imagens aqui para começar</p>
+            </div>
+
+            <div class="pages-container hidden" id="pagesContainer">
+                <div class="pages-grid" id="pagesGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="organize-footer hidden" id="organizeFooter">
+        <div class="footer-info">
+            <span id="pageCount">0 páginas</span>
+            <span class="separator">•</span>
+            <span id="selectedCount">0 selecionadas</span>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".pdf,image/*" multiple style="display: none;">
+
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Ajuda e Atalhos
+                </div>
+                <button class="modal-close" onclick="closeHelpModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-content">
+                    <div class="help-section">
+                        <h3><i class="fas fa-keyboard"></i> Atalhos do Teclado</h3>
+                        <div class="shortcut-list">
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd> + <kbd>O</kbd>
+                                <span>Abrir arquivos</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd> + <kbd>A</kbd>
+                                <span>Selecionar todas as páginas</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Delete</kbd>
+                                <span>Excluir páginas selecionadas</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Ctrl</kbd> + <kbd>E</kbd>
+                                <span>Exportar selecionadas</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Espaço</kbd>
+                                <span>Abrir visualizador</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>Esc</kbd>
+                                <span>Fechar modais</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>G</kbd>
+                                <span>Modo grade</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <kbd>L</kbd>
+                                <span>Modo lista</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3><i class="fas fa-mouse-pointer"></i> Funcionalidades</h3>
+                        <div class="feature-list">
+                            <div class="feature-item">
+                                <i class="fas fa-plus"></i>
+                                <div>
+                                    <strong>Adicionar Arquivos</strong>
+                                    <p>Clique no botão + ou arraste arquivos PDF e imagens para a área</p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-arrows-alt"></i>
+                                <div>
+                                    <strong>Reorganizar Páginas</strong>
+                                    <p>Arraste e solte páginas para reordená-las</p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <div>
+                                    <strong>Seleção Múltipla</strong>
+                                    <p>Ctrl+clique para seleção múltipla, Shift+clique para intervalo</p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-redo"></i>
+                                <div>
+                                    <strong>Rotação</strong>
+                                    <p>Clique direito em uma página e selecione "Rotacionar"</p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-download"></i>
+                                <div>
+                                    <strong>Exportação</strong>
+                                    <p>Exporte como PDF único, PDFs separados ou imagens</p>
+                                </div>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-eye"></i>
+                                <div>
+                                    <strong>Visualização</strong>
+                                    <p>Grade, lista ou visualização única em tela cheia</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3><i class="fas fa-info-circle"></i> Formatos Suportados</h3>
+                        <div class="format-list">
+                            <span class="format-tag">PDF</span>
+                            <span class="format-tag">JPEG</span>
+                            <span class="format-tag">PNG</span>
+                            <span class="format-tag">GIF</span>
+                            <span class="format-tag">WEBP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal document-viewer-modal" id="documentViewerModal">
+        <div class="modal-content fullscreen">
+            <div class="viewer-header">
+                <div class="viewer-controls">
+                    <button class="viewer-btn" onclick="closeDocumentViewer()" data-tooltip="Fechar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <button class="viewer-btn" id="toggleThumbnails" onclick="toggleThumbnails()" data-tooltip="Miniaturas">
+                        <i class="fas fa-images"></i>
+                    </button>
+                </div>
+                <div class="viewer-info">
+                    <span id="viewerPageInfo">Página 1 de 1</span>
+                </div>
+                <div class="viewer-navigation">
+                    <button class="viewer-btn" onclick="previousPage()" data-tooltip="Anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="viewer-btn" onclick="nextPage()" data-tooltip="Próxima">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <div class="zoom-controls">
+                        <button class="viewer-btn" onclick="zoomOut()" data-tooltip="Diminuir">
+                            <i class="fas fa-search-minus"></i>
+                        </button>
+                        <span id="zoomDisplay">25%</span>
+                        <button class="viewer-btn" onclick="zoomIn()" data-tooltip="Aumentar">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button class="viewer-btn" onclick="resetZoom()" data-tooltip="Resetar">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="viewer-container">
+                <div class="viewer-thumbnails visible" id="viewerThumbnails">
+                    <div class="thumbnails-header">
+                        <h4>Páginas</h4>
+                    </div>
+                    <div class="thumbnails-list" id="thumbnailsList"></div>
+                </div>
+                <div class="viewer-content">
+                    <div class="document-viewer" id="documentViewer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-overlay" id="progressOverlay">
+        <div class="progress-content">
+            <div class="progress-spinner"></div>
+            <div class="progress-text" id="progressTitle">Carregando</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-details" id="progressDetails">
+                <span id="currentProgress">0</span> / <span id="totalProgress">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="viewSinglePage()">
+            <i class="fas fa-eye"></i> Visualizar
+        </div>
+        <div class="context-menu-item" onclick="rotatePage()">
+            <i class="fas fa-redo"></i> Rotacionar
+        </div>
+        <div class="context-menu-item" onclick="movePage()">
+            <i class="fas fa-arrows-alt"></i> Mover para
+        </div>
+        <div class="context-menu-item" onclick="deletePage()">
+            <i class="fas fa-trash"></i> Excluir
+        </div>
+    </div>
+
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Exportar Páginas</div>
+                <button class="modal-close" onclick="cancelExport()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options" id="exportOptions">
+                    <div class="export-option" data-type="single-pdf">
+                        <div class="export-title">PDF Único</div>
+                        <div class="export-desc">Todas as páginas em um arquivo</div>
+                    </div>
+                    <div class="export-option" data-type="separate-pdf">
+                        <div class="export-title">PDFs Separados</div>
+                        <div class="export-desc">Cada página como PDF individual</div>
+                    </div>
+                    <div class="export-option" data-type="separate-images">
+                        <div class="export-title">Imagens Separadas</div>
+                        <div class="export-desc">Cada página como imagem PNG</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="organize-btn" onclick="cancelExport()">Cancelar</button>
+                <button class="organize-btn primary" onclick="confirmExport()">Exportar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal" id="splitModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Dividir Arquivo</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Selecione um intervalo de páginas para criar um novo arquivo PDF.</p>
+                <div class="input-group">
+                    <label>Intervalo de Páginas (ex: 2-20):</label>
+                    <input type="text" id="pageRangeInput" placeholder="Ex: 2-20" />
+                </div>
+                <span id="splitError" class="input-error" style="display: none;"></span>
+            </div>
+            <div class="modal-actions">
+                <button class="organize-btn primary" onclick="performSplit()">Dividir</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="moveModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Mover página</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Mover para posição:</label>
+                    <select id="movePosition"></select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="organize-btn" onclick="closeModal()">Cancelar</button>
+                <button class="organize-btn primary" onclick="confirmMove()">Mover</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/tooltip.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/fileHandler.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/dragDrop.js"></script>
+    <script src="js/selection.js"></script>
+    <script src="js/contextMenu.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/clearWindow.js"></script>
+    <script src="js/split.js"></script>
+    <script src="js/organizeInterface.js"></script>
+    <script src="js/pageViewer.js"></script>
+    <script src="js/renderer.js"></script>
+</body>
+</html>
