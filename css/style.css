@@ -366,7 +366,11 @@ body {
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-height: 60vh;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
     gap: var(--organize-space-6);
     cursor: pointer;
     transition: var(--organize-transition);
