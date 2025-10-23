@@ -1,8 +1,8 @@
-// Gerenciamento de drag and drop (CORRIGIDO)
+// Gerenciamento de drag and drop
 class DragDropManager {
     constructor() {
-        this.draggedPage = null; // Usado para arrastar uma única página
-        this.draggedPages = []; // Usado para arrastar múltiplas páginas
+        this.draggedPage = null;
+        this.draggedPages = [];
         this.setupFileDropZone();
     }
 
@@ -42,7 +42,6 @@ class DragDropManager {
     handleDragStart(e) {
         const startIndex = parseInt(e.currentTarget.dataset.index);
 
-        // CORREÇÃO: Lógica para arrastar múltiplas páginas ou uma única
         // Se a página clicada não estiver selecionada, limpa a seleção e seleciona apenas ela
         if (!window.appState.selectedPages.has(startIndex)) {
             window.selectionManager.clearSelection();
@@ -58,7 +57,7 @@ class DragDropManager {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', '');
         
-        // Criar imagem de drag personalizada para manter o tamanho
+        // Criar imagem de drag personalizada
         const dragImage = e.currentTarget.cloneNode(true);
         dragImage.style.opacity = '0.8';
         dragImage.style.transform = 'rotate(2deg) scale(1.05)';
@@ -88,45 +87,63 @@ class DragDropManager {
         e.preventDefault();
         const targetIndex = parseInt(e.currentTarget.dataset.index);
         
-        // CORREÇÃO: Mover todas as páginas selecionadas
-        if (this.draggedPages.length > 0) {
-            
-            // Re-ordena o array para remover do último para o primeiro (evita problemas de índice)
-            const pagesToRemove = this.draggedPages.sort((a, b) => b - a);
-            const movedPages = [];
-            
-            // Remove as páginas do array principal e armazena-as
-            pagesToRemove.forEach(index => {
-                movedPages.unshift(window.appState.pages.splice(index, 1)[0]);
-            });
-
-            // Ajusta o índice de destino, pois as páginas anteriores foram removidas
-            let adjustedTargetIndex = targetIndex;
-            pagesToRemove.forEach(index => {
-                if (index < targetIndex) {
-                    adjustedTargetIndex--;
-                }
-            });
-
-            // Insere as páginas movidas na nova posição
-            window.appState.pages.splice(adjustedTargetIndex, 0, ...movedPages);
-            
-            // Atualiza a seleção
-            window.appState.selectedPages.clear();
-            for (let i = 0; i < movedPages.length; i++) {
-                window.appState.selectedPages.add(adjustedTargetIndex + i);
-            }
-
-            // Renderiza e atualiza a interface
-            window.pageRenderer.renderPages();
-            window.selectionManager.updateVisuals();
+        // ========================================
+        // CORREÇÃO: Lógica completamente reescrita
+        // ========================================
+        
+        if (this.draggedPages.length === 0) {
+            return;
         }
+
+        // Se está tentando soltar no mesmo lugar
+        if (this.draggedPages.includes(targetIndex)) {
+            return;
+        }
+
+        // 1. Extrair as páginas que serão movidas
+        const pagesToMove = this.draggedPages.map(index => window.appState.pages[index]);
+        
+        // 2. Criar novo array sem as páginas selecionadas
+        const remainingPages = window.appState.pages.filter((_, index) => 
+            !this.draggedPages.includes(index)
+        );
+        
+        // 3. Calcular o novo índice de destino
+        // Contar quantas páginas selecionadas estão ANTES do target
+        const selectedBeforeTarget = this.draggedPages.filter(index => index < targetIndex).length;
+        let adjustedTargetIndex = targetIndex - selectedBeforeTarget;
+        
+        // Se está soltando DEPOIS de onde estavam as páginas, ajustar
+        if (targetIndex > this.draggedPages[this.draggedPages.length - 1]) {
+            adjustedTargetIndex = targetIndex - this.draggedPages.length + 1;
+        }
+        
+        // Garantir que o índice está dentro dos limites
+        adjustedTargetIndex = Math.max(0, Math.min(adjustedTargetIndex, remainingPages.length));
+        
+        // 4. Inserir as páginas movidas na nova posição
+        remainingPages.splice(adjustedTargetIndex, 0, ...pagesToMove);
+        
+        // 5. Atualizar o estado global
+        window.appState.pages = remainingPages;
+        
+        // 6. Atualizar a seleção para refletir as novas posições
+        window.appState.selectedPages.clear();
+        for (let i = 0; i < pagesToMove.length; i++) {
+            window.appState.selectedPages.add(adjustedTargetIndex + i);
+        }
+
+        // 7. Renderizar e atualizar a interface
+        window.pageRenderer.renderPages();
+        window.selectionManager.updateVisuals();
+        
+        console.log(`✅ Movidas ${pagesToMove.length} página(s) para posição ${adjustedTargetIndex + 1}`);
     }
 
     handleDragEnd(e) {
         e.currentTarget.classList.remove('dragging');
         this.draggedPage = null;
-        this.draggedPages = []; // Limpa o array de páginas arrastadas
+        this.draggedPages = [];
     }
 }
 
