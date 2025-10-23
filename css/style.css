@@ -309,12 +309,24 @@ body {
     padding-bottom: var(--organize-space-4);
 }
 
+/* CORREÇÃO: Container usa flexbox para centralizar empty-state */
 .organize-content {
     flex: 1;
     padding: var(--organize-space-6);
     position: relative;
     width: 100%;
     max-width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 56px - 40px);
+}
+
+/* Quando há páginas carregadas, volta ao comportamento normal */
+.organize-content:has(.pages-container:not(.hidden)) {
+    display: block;
+    align-items: initial;
+    justify-content: initial;
 }
 
 /* ==========================================
@@ -357,7 +369,7 @@ body {
 }
 
 /* ==========================================
-   ESTADO VAZIO
+   ESTADO VAZIO - CORRIGIDO
    ========================================== */
 
 .empty-state {
@@ -366,14 +378,19 @@ body {
     align-items: center;
     justify-content: center;
     text-align: center;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%;
     gap: var(--organize-space-6);
     cursor: pointer;
     transition: var(--organize-transition);
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    padding: var(--organize-space-8);
+}
+
+/* Prevenir movimento durante drag */
+.empty-state.drag-active {
+    transform: none !important;
+    position: relative !important;
 }
 
 .empty-state:hover .empty-icon {
@@ -427,12 +444,111 @@ body {
     font-size: 24px;
     font-weight: 600;
     color: var(--organize-text);
+    margin: 0;
 }
 
 .empty-state p {
     font-size: 16px;
     color: var(--organize-text-secondary);
     max-width: 400px;
+    margin: 0;
+}
+
+/* ==========================================
+   DRAG & DROP - ESTADOS VISUAIS
+   ========================================== */
+
+/* Estado de drag over */
+.organize-content.drag-over {
+    background: rgba(13, 153, 255, 0.05);
+    position: relative;
+}
+
+/* Borda animada durante drag */
+.organize-content.drag-over::before {
+    content: '';
+    position: absolute;
+    inset: var(--organize-space-6);
+    border: 3px dashed var(--organize-accent);
+    border-radius: var(--organize-radius-lg);
+    pointer-events: none;
+    animation: dashBorder 1s linear infinite;
+    z-index: 1;
+}
+
+@keyframes dashBorder {
+    0%, 100% {
+        border-color: var(--organize-accent);
+        opacity: 1;
+    }
+    50% {
+        border-color: var(--organize-accent-hover);
+        opacity: 0.6;
+    }
+}
+
+/* Animação do empty-state durante drag */
+.organize-content.drag-over .empty-state {
+    transform: scale(1.02) !important;
+}
+
+.organize-content.drag-over .empty-icon {
+    border-color: var(--organize-accent);
+    background: rgba(13, 153, 255, 0.1);
+    animation: pulse 1.5s infinite;
+}
+
+.organize-content.drag-over .empty-icon i {
+    color: var(--organize-accent);
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Overlay quando já tem páginas carregadas */
+.organize-content.has-pages.drag-over::after {
+    content: 'Solte aqui para adicionar mais páginas';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--organize-accent);
+    color: white;
+    padding: var(--organize-space-6) var(--organize-space-10);
+    border-radius: var(--organize-radius-lg);
+    font-size: 18px;
+    font-weight: 600;
+    box-shadow: var(--organize-shadow-xl);
+    z-index: 2000;
+    pointer-events: none;
+    animation: fadeInScale 0.2s ease;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* Cursor durante drag externo */
+.organize-content.drag-over.external-drag {
+    cursor: copy !important;
+}
+
+.organize-content.drag-over.external-drag * {
+    pointer-events: none;
 }
 
 /* ==========================================
@@ -487,6 +603,8 @@ body {
 
 .pages-container {
     transition: var(--organize-transition);
+    position: relative;
+    width: 100%;
 }
 
 .pages-container.hidden {
@@ -531,11 +649,12 @@ body {
 }
 
 .page-item.dragging {
-    opacity: 0.8;
+    opacity: 0.5;
     transform: scale(1.01);
     z-index: 1000;
     box-shadow: var(--organize-shadow-lg);
     transition: none;
+    cursor: grabbing !important;
 }
 
 .list-view .page-item {
@@ -1217,15 +1336,47 @@ body {
 }
 
 /* ==========================================
-   DRAG OVER STATE
+   NOTIFICAÇÕES
    ========================================== */
 
-.organize-content.drag-over {
-    background: rgba(13, 153, 255, 0.05);
+.organize-notification {
+    position: fixed;
+    top: 80px;
+    right: var(--organize-space-6);
+    background: var(--organize-surface);
+    border: 1px solid var(--organize-border);
+    border-radius: var(--organize-radius-md);
+    padding: var(--organize-space-4) var(--organize-space-6);
+    box-shadow: var(--organize-shadow-lg);
+    z-index: 5000;
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-weight: 500;
+    max-width: 400px;
 }
 
-.organize-content.drag-over .empty-state {
-    transform: scale(1.02);
+.organize-notification.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.organize-notification.error {
+    background: rgba(242, 78, 30, 0.1);
+    border-color: var(--organize-danger);
+    color: var(--organize-danger);
+}
+
+.organize-notification.warning {
+    background: rgba(255, 199, 0, 0.1);
+    border-color: var(--organize-warning);
+    color: var(--organize-warning);
+}
+
+.organize-notification.success {
+    background: rgba(15, 169, 88, 0.1);
+    border-color: var(--organize-success);
+    color: var(--organize-success);
 }
 
 /* ==========================================
@@ -1388,6 +1539,7 @@ body {
     
     .organize-content {
         padding: var(--organize-space-4);
+        min-height: calc(100vh - 48px - 40px);
     }
     
     .header-btn {
@@ -1405,8 +1557,8 @@ body {
     }
     
     .empty-state {
-        min-height: 50vh;
         gap: var(--organize-space-4);
+        padding: var(--organize-space-6);
     }
     
     .empty-icon {
@@ -1462,6 +1614,18 @@ body {
         font-size: 12px;
         min-width: 60px;
     }
+    
+    .organize-notification {
+        top: 60px;
+        right: var(--organize-space-4);
+        left: var(--organize-space-4);
+        max-width: none;
+    }
+    
+    .organize-content.has-pages.drag-over::after {
+        font-size: 16px;
+        padding: var(--organize-space-5) var(--organize-space-8);
+    }
 }
 
 @media (max-width: 480px) {
@@ -1477,6 +1641,7 @@ body {
     
     .organize-content {
         padding: var(--organize-space-3);
+        min-height: calc(100vh - 44px - 40px);
     }
     
     .header-title {
@@ -1543,6 +1708,10 @@ body {
     
     .titlebar-icon {
         font-size: 12px;
+    }
+    
+    .empty-state {
+        padding: var(--organize-space-4);
     }
 }
 
