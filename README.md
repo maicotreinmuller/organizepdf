@@ -19,3 +19,5 @@ Este projeto foi desenvolvido com Electron, HTML, CSS e JavaScript, focando em p
 Obtenha o executável através do link: https://pay.kiwify.com.br/BmjcTQT
 
 <img width="1178" height="700" alt="image" src="https://github.com/user-attachments/assets/16a61abd-5a69-4729-a973-bd74cb534c31" />
+
+https://youtu.be/913D6b7Ny_M
