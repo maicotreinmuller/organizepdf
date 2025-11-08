@@ -14,3 +14,7 @@ O "Organize PDF" foi criado para ser intuitivo, rápido e poderoso, oferecendo u
 *   **🎨 Interface Moderna:** Desfrute de um design limpo com temas claro e escuro, visualização em grade ou lista e um visualizador de páginas integrado.
 
 Este projeto foi desenvolvido com Electron, HTML, CSS e JavaScript, focando em performance e usabilidade.
+
+
+Adiquira através do link: https://pay.kiwify.com.br/BmjcTQT
+<img width="1178" height="700" alt="image" src="https://github.com/user-attachments/assets/16a61abd-5a69-4729-a973-bd74cb534c31" />
