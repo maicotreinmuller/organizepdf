@@ -1,4 +1,4 @@
-// Sistema de exportação completo (CORRIGIDO - índices e diálogo de salvar)
+// Sistema de exportação completo (CORRIGIDO - índices, diálogo de salvar e suporte JPG/PNG)
 class ExportManager {
     constructor() {
         this.selectedType = null;
@@ -310,6 +310,8 @@ class ExportManager {
             } else {
                 // Converter página para imagem e normalizar
                 const canvas = await this.renderPDFPageToCanvas(pageData, 5.0);
+                
+                // Sempre usar PNG para páginas PDF renderizadas
                 const imageBytes = await this.canvasToArrayBuffer(canvas, 'image/png', 1.0);
                 const image = await targetDoc.embedPng(imageBytes);
                 
@@ -391,12 +393,22 @@ class ExportManager {
         }
     }
 
-    // AUTO-AJUSTE para imagens
+    // AUTO-AJUSTE para imagens (CORRIGIDO - Suporte JPG/PNG)
     async addImagePageToPDF(targetDoc, pageData) {
         try {
-            // Renderizar imagem em alta qualidade (escala 5.0)
-            const canvas = await this.pageToCanvas(pageData, 5.0);
-            const imageBytes = await this.canvasToArrayBuffer(canvas, 'image/png', 1.0);
+            console.log('Processando imagem:', pageData.fileName);
+            
+            // Renderizar imagem em alta qualidade (reduzindo escala para evitar problemas)
+            const canvas = await this.pageToCanvas(pageData, 3.0); // Reduzido de 5.0 para 3.0
+            
+            console.log('Canvas criado, convertendo para bytes...');
+            
+            // Para imagens, sempre usar PNG pois garante compatibilidade
+            const imageBytes = await this.canvasToArrayBuffer(canvas, 'image/png', 0.95);
+            
+            console.log('Bytes obtidos, fazendo embed no PDF...');
+            
+            // Embed como PNG
             const image = await targetDoc.embedPng(imageBytes);
             
             // Obter dimensões da imagem
@@ -453,46 +465,118 @@ class ExportManager {
 
     // Renderizar com alta qualidade
     async pageToCanvas(pageData, scale = 5.0) {
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d', {
-            alpha: false,
-            desynchronized: false,
-            willReadFrequently: false
-        });
-        
-        const viewport = pageData.page.getViewport({ 
-            scale: scale,
-            rotation: pageData.rotation || 0
-        });
-        
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        
-        // Fundo branco
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Configurar contexto para máxima qualidade
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = 'high';
-        
-        await pageData.page.render({
-            canvasContext: context,
-            viewport: viewport
-        }).promise;
-        
-        return canvas;
+        try {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', {
+                alpha: false,
+                desynchronized: false,
+                willReadFrequently: false
+            });
+            
+            if (!context) {
+                throw new Error('Não foi possível obter contexto 2D do canvas');
+            }
+            
+            const viewport = pageData.page.getViewport({ 
+                scale: scale,
+                rotation: pageData.rotation || 0
+            });
+            
+            // Limitar dimensões do canvas para evitar problemas de memória
+            const maxDimension = 16384; // Limite do canvas
+            let finalScale = scale;
+            
+            if (viewport.width > maxDimension || viewport.height > maxDimension) {
+                const scaleWidth = maxDimension / (viewport.width / scale);
+                const scaleHeight = maxDimension / (viewport.height / scale);
+                finalScale = Math.min(scaleWidth, scaleHeight);
+                console.warn(`Reduzindo escala de ${scale} para ${finalScale} para evitar overflow`);
+            }
+            
+            const finalViewport = pageData.page.getViewport({ 
+                scale: finalScale,
+                rotation: pageData.rotation || 0
+            });
+            
+            canvas.width = Math.floor(finalViewport.width);
+            canvas.height = Math.floor(finalViewport.height);
+            
+            console.log(`Canvas: ${canvas.width}x${canvas.height}`);
+            
+            // Fundo branco
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Configurar contexto para máxima qualidade
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+            
+            await pageData.page.render({
+                canvasContext: context,
+                viewport: finalViewport
+            }).promise;
+            
+            return canvas;
+        } catch (error) {
+            console.error('Erro ao criar canvas:', error);
+            throw error;
+        }
     }
 
     async canvasToBlob(canvas, mimeType = 'image/png', quality = 1.0) {
-        return new Promise((resolve) => {
-            canvas.toBlob(resolve, mimeType, quality);
+        return new Promise((resolve, reject) => {
+            try {
+                // Verificar se o canvas é válido
+                if (!canvas || !canvas.getContext) {
+                    reject(new Error('Canvas inválido'));
+                    return;
+                }
+                
+                // Verificar dimensões
+                if (canvas.width === 0 || canvas.height === 0) {
+                    reject(new Error(`Canvas com dimensões inválidas: ${canvas.width}x${canvas.height}`));
+                    return;
+                }
+                
+                console.log(`Convertendo canvas ${canvas.width}x${canvas.height} para ${mimeType}`);
+                
+                // Timeout de segurança
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout ao converter canvas para blob'));
+                }, 30000); // 30 segundos
+                
+                canvas.toBlob((blob) => {
+                    clearTimeout(timeout);
+                    if (blob) {
+                        console.log(`Blob criado com sucesso: ${blob.size} bytes`);
+                        resolve(blob);
+                    } else {
+                        reject(new Error(`toBlob retornou null para ${mimeType}`));
+                    }
+                }, mimeType, quality);
+            } catch (error) {
+                reject(new Error(`Exceção ao converter canvas: ${error.message}`));
+            }
         });
     }
 
     async canvasToArrayBuffer(canvas, mimeType = 'image/png', quality = 1.0) {
-        const blob = await this.canvasToBlob(canvas, mimeType, quality);
-        return blob.arrayBuffer();
+        try {
+            const blob = await this.canvasToBlob(canvas, mimeType, quality);
+            if (!blob) {
+                throw new Error('Blob é null após conversão');
+            }
+            return await blob.arrayBuffer();
+        } catch (error) {
+            console.error('Erro ao converter canvas para ArrayBuffer:', error);
+            // Fallback: tentar sempre com PNG se falhar
+            if (mimeType !== 'image/png') {
+                console.warn('Tentando novamente com PNG...');
+                const blob = await this.canvasToBlob(canvas, 'image/png', 1.0);
+                return await blob.arrayBuffer();
+            }
+            throw error;
+        }
     }
 
     downloadFile(data, filename, mimeType) {
@@ -589,6 +673,61 @@ class ExportManager {
     sanitizeFilename(filename) {
         const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
         return nameWithoutExt.replace(/[^a-zA-Z0-9\-_]/g, '_').substring(0, 50);
+    }
+
+    // Detectar tipo MIME da imagem original
+    detectImageMimeType(pageData) {
+        if (!pageData.fileName) return 'image/png';
+        
+        const ext = pageData.fileName.toLowerCase().split('.').pop();
+        
+        switch(ext) {
+            case 'jpg':
+            case 'jpeg':
+                return 'image/jpeg';
+            case 'png':
+                return 'image/png';
+            default:
+                return 'image/png'; // Fallback para PNG
+        }
+    }
+
+    // Embed imagem usando o método correto baseado no tipo
+    async embedImageByType(pdfDoc, imageBytes, mimeType) {
+        try {
+            if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+                return await pdfDoc.embedJpg(imageBytes);
+            } else {
+                return await pdfDoc.embedPng(imageBytes);
+            }
+        } catch (error) {
+            // Se falhar, tentar converter para PNG
+            console.warn(`Erro ao embed ${mimeType}, tentando PNG:`, error);
+            
+            // Criar um canvas temporário para conversão
+            const img = new Image();
+            const blob = new Blob([imageBytes], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = url;
+            });
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            
+            URL.revokeObjectURL(url);
+            
+            const pngBytes = await this.canvasToArrayBuffer(canvas, 'image/png', 1.0);
+            return await pdfDoc.embedPng(pngBytes);
+        }
     }
 }
 
