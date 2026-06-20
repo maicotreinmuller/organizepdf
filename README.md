@@ -16,4 +16,4 @@ O "Organize PDF" foi criado para ser intuitivo, rápido e poderoso, oferecendo u
 Este projeto foi desenvolvido com Electron, HTML, CSS e JavaScript, focando em performance e usabilidade.
 
 O download é direto pelo Google Drive:
-https://lnkd.in/d9BAz6Se
+https://download.bolt.host/
